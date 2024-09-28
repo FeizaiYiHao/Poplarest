@@ -9,8 +9,8 @@ pub struct Thread{
     pub parent: ProcPtr,
     pub rev_ptr: SLLIndex,
 
-    pub scheduled: bool:
-    pub rev_ptr_sched: SSLIndex,
+    pub scheduled: bool,
+    pub rev_ptr_sched: SLLIndex,
 }
 
 }

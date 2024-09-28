@@ -6,7 +6,7 @@ use crate::slinkedlist::spec_impl_u::*;
 verus!{
 
 pub struct Process{
-    pub parent: ProcPtr,
+    pub parent: Option<ProcPtr>,
     pub children_count: usize,
     pub children: Ghost<Set<ProcPtr>>,
     pub thread_ptrs: StaticLinkedList<ThreadPtr, MAX_NUM_THREADS_PER_PROC>,
