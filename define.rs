@@ -11,6 +11,7 @@ pub type ProcPtr = usize;
 pub type EndpointIdx = usize;
 pub type EndpointPtr = usize;
 pub type PageTablePtr = usize;
+pub type CpuId = usize;
 
 pub type PagePtr = usize;
 pub type PagePerm4k = PointsTo<[u8; PAGE_SZ_4k]>;
