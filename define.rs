@@ -6,6 +6,9 @@ use vstd::simple_pptr::*;
 // use crate::trap::Registers;
 
 // -------------------- Begin of Types --------------------
+pub type ThreadID = nat;
+pub type LockID = nat;
+
 pub type ThreadPtr = usize;
 pub type ProcPtr = usize;
 pub type EndpointIdx = usize;

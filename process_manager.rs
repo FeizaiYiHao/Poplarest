@@ -15,6 +15,7 @@ pub struct ProcessManager{
     pub proc_ptrs: StaticLinkedList<ProcPtr, MAX_NUM_PROCS>,
     pub proc_perms: Tracked<Map<ProcPtr, PointsTo<Process>>>,
 
+    //contains threads of process which owns at least one thread. --> if a process is being created or killed, it i's not in here
     pub thread_perms: Tracked<Map<ProcPtr, Map<ThreadPtr, PointsTo<Thread>>>>,
 
     pub scheduler: StaticLinkedList<(ProcPtr, ThreadPtr), MAX_NUM_THREADS>,
@@ -63,7 +64,7 @@ impl ProcessManager{
             &&
             self.proc_perms@[child_ptr].value().parent =~= Some(proc_ptr)
         &&&
-        self.proc_perms@.dom() =~= self.thread_perms@.dom()
+        forall|proc_ptr:ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr].value().thread_ptrs.len() != 0 <==> self.thread_perms@.dom().contains(proc_ptr)
     }
 
     pub open spec fn proc_thread_domain_wf(&self, proc_ptr: ProcPtr) -> bool
