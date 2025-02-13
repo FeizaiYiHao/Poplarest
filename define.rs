@@ -1,20 +1,22 @@
 use vstd::prelude::*;
 
 verus! {
-
 use vstd::simple_pptr::*;
 // use crate::trap::Registers;
 
 // -------------------- Begin of Types --------------------
-pub type ThreadID = nat;
-pub type LockID = nat;
-
 pub type ThreadPtr = usize;
 pub type ProcPtr = usize;
 pub type EndpointIdx = usize;
 pub type EndpointPtr = usize;
-pub type PageTablePtr = usize;
+pub type ContainerPtr = usize;
 pub type CpuId = usize;
+
+pub type ThreadID = usize;
+pub type LockMajorID = usize;
+pub type LockMinorID = usize;
+
+pub type LockIDPair = (LockMajorID,LockMinorID);
 
 pub type PagePtr = usize;
 pub type PagePerm4k = PointsTo<[u8; PAGE_SZ_4k]>;
@@ -38,23 +40,43 @@ pub type L1Index = usize;
 pub type SLLIndex = i32;
 
 #[derive(Clone, Copy, Debug)]
-pub enum ErrorCodeType {
-    NoErrorCode,
-}
-
-#[derive(Clone, Copy, Debug)]
 pub enum ThreadState {
     SCHEDULED,
     BLOCKED,
     RUNNING,
-    CALLING,
     TRANSIT,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EndpointState {
     RECEIVE,
     SEND,
+}
+
+impl EndpointState{
+    pub fn is_send(&self) -> (ret:bool)
+        ensures
+            ret == (self == EndpointState::SEND),
+    {
+        match self{
+            EndpointState::SEND => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_receive(&self) -> (ret:bool)
+    ensures
+            ret == (self == EndpointState::RECEIVE),
+    {
+        match self{
+            EndpointState::RECEIVE => true,
+            _ => false,
+        }
+    }
+
+    // pub open spec fn is_receive_spec(&self) -> bool {
+    //     self matches EndpointState { foo } &&  foo == EndpointState::SEND
+    // }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -66,7 +88,7 @@ pub enum PageType {
 }
 
 #[allow(inconsistent_fields)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PageState {
     Unavailable4k,
     Unavailable2m,
@@ -105,19 +127,32 @@ pub enum PageTableErrorCode {
     EntryTakenBy1g,
 }
 
+#[derive(Clone, Copy)]
+#[allow(inconsistent_fields)]
+pub enum RetValueType{
+    SuccessUsize{ value:usize },
+    SuccessSeqUsize{ value:Ghost<Seq<usize>> },
+    SuccessPairUsize{ value1:usize, value2:usize},
+    SuccessThreeUsize{ value1:usize, value2:usize, value3:usize},
+    CpuIdle,
+    Error,
+    Else,
+    NoQuota,
+    VaInUse,
+}
 // -------------------- End of Types --------------------
 
 // -------------------- Begin of Const --------------------
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 128;
-pub const MAX_NUM_THREADS_PER_PROC:usize = 250;
-pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 250;
+pub const MAX_NUM_THREADS_PER_PROC:usize = 128;
+pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 128;
 pub const MAX_NUM_PROCS:usize = PCID_MAX;
 pub const MAX_NUM_THREADS:usize = 500 * 4096;
 pub const IPC_MESSAGE_LEN:usize = 1024;
 pub const IPC_PAGEPAYLOAD_LEN:usize = 128;
 
 pub const KERNEL_MEM_END_L4INDEX:usize = 1; //1 for now
-pub const NUM_PAGES:usize = 2*1024*1024; //8GB
+pub const NUM_PAGES:usize = 1*1024*1024; //4GiB
 pub const PAGE_SZ_4k:usize = 1usize << 12;
 pub const PAGE_SZ_2m:usize = 1usize << 21;
 pub const PAGE_SZ_1g:usize = 1usize << 30;
@@ -148,6 +183,126 @@ pub const PAGE_ENTRY_WRITE_MASK:u64 = 0x1u64<<PAGE_ENTRY_WRITE_SHIFT;
 pub const PAGE_ENTRY_USER_MASK:u64 = 0x1u64<<PAGE_ENTRY_USER_SHIFT;
 pub const PAGE_ENTRY_PS_MASK:u64 = 0x1u64<<PAGE_ENTRY_PS_SHIFT;
 pub const PAGE_ENTRY_EXECUTE_MASK:u64 = 0x1u64<<PAGE_ENTRY_EXECUTE_SHIFT;
+
+pub const CONTAINER_PROC_LIST_LEN:usize = 10;
+pub const CONTAINER_CHILD_LIST_LEN:usize = 10;
+pub const CONTAINER_ENDPOINT_LIST_LEN:usize = 10;
+pub const MAX_CONTAINER_SCHEDULER_LEN:usize = 10;
 // -------------------- End of Const --------------------
+
+// -------------------- Begin of Structs --------------------
+#[derive(Clone, Copy, Debug)]
+pub enum SwitchDecision{
+    NoSwitch,
+    NoThread,
+    Switch,
+}
+
+#[derive(Clone, Copy)]
+pub struct SyscallReturnStruct{
+    pub error_code: RetValueType,
+    pub pcid: Option<Pcid>,
+    pub cr3: Option<usize>,
+    pub switch_decision: SwitchDecision,
+}
+
+impl SyscallReturnStruct{
+
+    pub open spec fn get_return_vaule_usize(&self) -> Option<usize>
+    {
+        match self.error_code {
+            RetValueType::SuccessUsize{value:value} => Some(value),
+            _ => None,
+        }
+    }
+
+    pub open spec fn get_return_vaule_seq_usize(&self) -> Option<Seq<usize>>
+    {
+        match self.error_code {
+            RetValueType::SuccessSeqUsize{value:value} => Some(value@),
+            _ => None,
+        }
+    }
+
+    pub open spec fn get_return_vaule_pair_usize(&self) -> Option<(usize,usize)>
+    {
+        match self.error_code {
+            RetValueType::SuccessPairUsize{value1:value1, value2:value2} => Some((value1, value2)),
+            _ => None,
+        }
+    }
+    pub open spec fn get_return_vaule_three_usize(&self) -> Option<(usize,usize,usize)>
+    {
+        match self.error_code {
+            RetValueType::SuccessThreeUsize{value1:value1, value2:value2, value3:value3} => Some((value1, value2, value3)),
+            _ => None,
+        }
+    }
+    pub open spec fn spec_is_error(&self) -> bool{
+        match self.error_code {
+            RetValueType::Error => true,
+            _ => false,
+        }
+    }
+
+    #[verifier(when_used_as_spec(spec_is_error))]
+    pub fn is_error(&self) -> (ret: bool)
+        ensures
+            ret == self.is_error()
+    {
+        match self.error_code {
+            RetValueType::Error => true,
+            _ => false,
+        }
+    }
+
+    pub fn NoSwitchNew(error_code:RetValueType )->(ret:Self)
+        ensures
+            ret.error_code == error_code,
+            ret.pcid.is_None(),
+            ret.cr3.is_None(),
+            ret.switch_decision == SwitchDecision::NoSwitch,
+    {
+        return Self{
+            error_code:error_code,
+            pcid:None,
+            cr3:None,
+            switch_decision: SwitchDecision::NoSwitch,
+        };
+    }
+
+    pub fn NoNextThreadNew(error_code:RetValueType )->(ret:Self)
+        ensures
+            ret.error_code == error_code,
+            ret.pcid.is_None(),
+            ret.cr3.is_None(),
+            ret.switch_decision == SwitchDecision::NoThread,
+    {
+        return Self{
+            error_code:error_code,
+            pcid:None,
+            cr3:None,
+            switch_decision: SwitchDecision::NoThread,
+        };
+    }
+
+    
+    pub fn SwitchNew(error_code:RetValueType, cr3:usize, pcid:Pcid)->(ret:Self)
+        ensures
+            ret.error_code == error_code,
+            ret.pcid =~= Some(pcid),
+            ret.cr3 =~= Some(cr3),
+            ret.switch_decision == SwitchDecision::Switch,
+    {
+        return Self{
+            error_code:error_code,
+            pcid:Some(pcid),
+            cr3:Some(cr3),
+            switch_decision: SwitchDecision::Switch,
+        };
+    }
+}
+
+// -------------------- End of Structs -------------------
 
 }
