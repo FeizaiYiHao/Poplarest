@@ -36,6 +36,11 @@ impl LockAgent{
         &&&
         forall|i:int| #![trigger self.lock_seq[i]] 0<=i<self.lock_seq.len()-1 ==> lock_id_greater_than(self.lock_seq[i], self.lock_seq[i+1])
     }
+
+    pub open spec fn is_empty(&self) -> bool{
+        &&&
+        self.lock_seq =~= Seq::empty()
+    }
 }
 
 pub open spec fn step_lock_aquire_requires(old: &LockAgent, lock_id:LockIDPair) -> bool{
@@ -66,6 +71,8 @@ pub open spec fn step_lock_release_ensures(old: &LockAgent, new: &LockAgent, loc
     new.wf()
     &&&
     new.lock_seq =~= old.lock_seq.remove_value(lock_id)
+    &&&
+    new.lock_seq.len() == old.lock_seq.len() - 1
     &&&
     new.thread_id =~= old.thread_id
 }

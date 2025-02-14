@@ -6,7 +6,7 @@ verus! {
 use crate::define::*;
 use crate::lock_agent::*;
 use crate::lemma::lemma_u::*;
-use crate::lemma::lemma_t::*;
+// use crate::lemma::lemma_t::*;
 
 pub struct RWLock<T, const N: usize>{
     pub locked: AtomicBool,
@@ -137,16 +137,21 @@ pub fn test(Tracked(lock_agent): Tracked<&mut LockAgent>,l1 :&mut RWLock<usize, 
         old(l2).reading_threads().contains(old(lock_agent).thread_id) == false,
         old(l2).writing_thread().is_None() || old(l2).writing_thread().unwrap() != old(lock_agent).thread_id,
         old(lock_agent).wf(),
-        old(lock_agent).lock_seq =~= Seq::empty(),
+        old(lock_agent).is_empty(),
+    ensures
+        lock_agent.is_empty(),
 {
     proof{
         seq_push_lemma::<LockIDPair>();
+        seq_remove_lemma_2::<LockIDPair>();
     }
     let read_perm_l1 = l1.read_lock(Tracked(lock_agent));
     let read_perm_l2 = l2.read_lock(Tracked(lock_agent));
-    assert(lock_agent.wf());
-    assert(lock_agent.lock_seq.no_duplicates());
+    assert(lock_agent.lock_seq.len() == 2);
     l1.read_unlock(Tracked(lock_agent),read_perm_l1);
+    assert(lock_agent.lock_seq.len() == 1);
+    l2.read_unlock(Tracked(lock_agent),read_perm_l2);
+    assert(lock_agent.lock_seq.len() == 0);
 }
 
 }
