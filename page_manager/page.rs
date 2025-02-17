@@ -2,14 +2,13 @@ use vstd::prelude::*;
 verus! {
     use crate::define::*;
     use vstd::simple_pptr::PPtr;
+    use vstd::simple_pptr::PointsTo;
     
-    #[derive(Clone, Copy)]
     pub struct Page{
         pub meta_data: PageMetaData,
-        pub container_meta_data: PageContainerMetaData,
+        page_linkedlist_metadata: PageLinkedlistMetaData,
     }
 
-    #[derive(Clone, Copy)]
     pub struct PageMetaData{
         pub addr: PagePtr,
         pub state: PageState,
@@ -19,12 +18,15 @@ verus! {
 
         // pub mappings: Ghost<Set<(Pcid,VAddr)>>,
         // pub io_mappings: Ghost<Set<(IOid,VAddr)>>,
+
+        
+        pub page_linkedlist_metadata_perm: Tracked<Option<PointsTo<PageLinkedlistMetaData>>>,
     }
 
     #[derive(Clone, Copy)]
-    pub struct PageContainerMetaData{
+    pub struct PageLinkedlistMetaData{
         pub addr: PagePtr,
-        pub prev: Option<PPtr<PageContainerMetaData>>,
-        pub next: Option<PPtr<PageContainerMetaData>>,
+        pub prev: Option<PPtr<PageLinkedlistMetaData>>,
+        pub next: Option<PPtr<PageLinkedlistMetaData>>,
     }
 }

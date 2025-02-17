@@ -18,6 +18,8 @@ pub type LockMinorID = usize;
 
 pub type LockIDPair = (LockMajorID,LockMinorID);
 
+
+pub type PageID = usize;
 pub type PagePtr = usize;
 pub type PagePerm4k = PointsTo<[u8; PAGE_SZ_4k]>;
 pub type PagePerm2m = PointsTo<[u8; PAGE_SZ_2m]>;
@@ -90,22 +92,36 @@ pub enum PageType {
 #[allow(inconsistent_fields)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PageState {
-    Unavailable4k,
-    Unavailable2m,
-    Unavailable1g,
-    Pagetable,
+    Unavailable,
     Allocated4k,
     Allocated2m,
     Allocated1g,
-    Free4k,
-    Free2m,
-    Free1g,
     Mapped4k,
     Mapped2m,
     Mapped1g,
     Merged2m,
     Merged1g,
-    Io,
+}
+
+impl PageState{
+    pub open spec fn spec_is_allocated(&self) -> bool{
+        match self{
+            PageState::Allocated4k ==> { return true},
+            PageState::Allocated2m ==> { return true},
+            PageState::Allocated1g ==> { return true},
+            _ ==> { return false},
+        }
+    }
+
+    #[verifier(when_used_as_spec(spec_is_allocated))]
+    pub fn is_allocated(&self) -> bool{
+        match self{
+            PageState::Allocated4k ==> { return true},
+            PageState::Allocated2m ==> { return true},
+            PageState::Allocated1g ==> { return true},
+            _ ==> { return false},
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -143,6 +159,8 @@ pub enum RetValueType{
 // -------------------- End of Types --------------------
 
 // -------------------- Begin of Const --------------------
+pub const PageLockMajor:usize = 20;
+
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 128;
 pub const MAX_NUM_THREADS_PER_PROC:usize = 128;
 pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 128;
