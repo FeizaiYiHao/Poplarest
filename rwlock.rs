@@ -19,6 +19,19 @@ pub struct RWLock<T, const N: usize>{
     pub reading_threads: Ghost<Set<ThreadID>>,
 }
 
+impl <T: Clone, const N: usize> Clone for RWLock<T, N>{
+    fn clone(&self) -> Self {
+        Self{
+            locked: self.locked,
+            num_writer: self.num_writer,
+            num_readers: self.num_readers,
+            data: self.data,
+            writing_thread: self.writing_thread,
+            reading_threads: self.reading_threads,
+        }
+    }
+}
+
 pub tracked struct ReadPerm {
 } 
 

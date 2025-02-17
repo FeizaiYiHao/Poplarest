@@ -4,11 +4,13 @@ verus! {
     use vstd::simple_pptr::PPtr;
     use vstd::simple_pptr::PointsTo;
     
+    #[derive(Clone, Copy)]
     pub struct Page{
         pub meta_data: PageMetaData,
         page_linkedlist_metadata: PageLinkedlistMetaData,
     }
 
+    #[derive(Clone, Copy)]
     pub struct PageMetaData{
         pub addr: PagePtr,
         pub state: PageState,
@@ -19,10 +21,7 @@ verus! {
         // pub mappings: Ghost<Set<(Pcid,VAddr)>>,
         // pub io_mappings: Ghost<Set<(IOid,VAddr)>>,
 
-        
-        pub page_linkedlist_metadata_perm: Tracked<Option<PointsTo<PageLinkedlistMetaData>>>,
     }
-
     #[derive(Clone, Copy)]
     pub struct PageLinkedlistMetaData{
         pub addr: PagePtr,

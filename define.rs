@@ -93,33 +93,25 @@ pub enum PageType {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PageState {
     Unavailable,
-    Allocated4k,
-    Allocated2m,
-    Allocated1g,
+    Allocated,
     Mapped4k,
     Mapped2m,
     Mapped1g,
-    Merged2m,
-    Merged1g,
 }
 
 impl PageState{
     pub open spec fn spec_is_allocated(&self) -> bool{
         match self{
-            PageState::Allocated4k ==> { return true},
-            PageState::Allocated2m ==> { return true},
-            PageState::Allocated1g ==> { return true},
-            _ ==> { return false},
+            PageState::Allocated => { return true},
+            _ => { return false},
         }
     }
 
     #[verifier(when_used_as_spec(spec_is_allocated))]
     pub fn is_allocated(&self) -> bool{
         match self{
-            PageState::Allocated4k ==> { return true},
-            PageState::Allocated2m ==> { return true},
-            PageState::Allocated1g ==> { return true},
-            _ ==> { return false},
+            PageState::Allocated => { return true},
+            _ => { return false},
         }
     }
 }
