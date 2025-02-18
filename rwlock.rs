@@ -22,10 +22,10 @@ pub struct RWLock<T, const N: usize>{
 impl <T: Clone, const N: usize> Clone for RWLock<T, N>{
     fn clone(&self) -> Self {
         Self{
-            locked: self.locked,
+            locked: AtomicBool::new(false),
             num_writer: self.num_writer,
             num_readers: self.num_readers,
-            data: self.data,
+            data: self.data.clone(),
             writing_thread: self.writing_thread,
             reading_threads: self.reading_threads,
         }

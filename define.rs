@@ -102,16 +102,16 @@ pub enum PageState {
 impl PageState{
     pub open spec fn spec_is_allocated(&self) -> bool{
         match self{
-            PageState::Allocated => { return true},
-            _ => { return false},
+            PageState::Allocated => true,
+            _ => false,
         }
     }
 
     #[verifier(when_used_as_spec(spec_is_allocated))]
     pub fn is_allocated(&self) -> bool{
         match self{
-            PageState::Allocated => { return true},
-            _ => { return false},
+            PageState::Allocated => true,
+            _ => false,
         }
     }
 }
