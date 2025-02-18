@@ -94,9 +94,8 @@ pub enum PageType {
 pub enum PageState {
     Unavailable,
     Allocated,
-    Mapped4k,
-    Mapped2m,
-    Mapped1g,
+    Mapped,
+    Merged,
 }
 
 impl PageState{
@@ -121,6 +120,7 @@ pub enum PageSize {
     SZ4k,
     SZ2m,
     SZ1g,
+    Unavailable,
 }
 
 #[derive(Clone, Copy, Debug)]
