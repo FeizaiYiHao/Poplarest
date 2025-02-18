@@ -52,7 +52,7 @@ verus! {
 
         //metadata
         addr: PagePtr,
-        state: PageState, // Only mapped pages can be read/write locked. Allocated and Merged pages need to be accessed by 
+        state: PageState,
         is_io_page: bool,
         ref_count: usize,
         owning_container: Option<ContainerPtr>,
@@ -64,7 +64,7 @@ verus! {
 
         //per-container linkedlist node perm
         page_linkedlist_metadata: PageLinkedlistMetaData,
-        page_linkedlist_metadata_perm: Tracked<Option<PointsTo<PageLinkedlistMetaData>>>
+        page_linkedlist_metadata_perm: Tracked<Option<PointsTo<PageLinkedlistMetaData>>>,
     }
 
     impl Page{
@@ -162,17 +162,25 @@ verus! {
         }
         pub closed spec fn reference_counting_wf(&self) -> bool{
             &&&
-            self.mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) + self.io_mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) == self@.ref_count
+            self.page_sate == PageState::Mapped ==> 
+                self.mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) + self.io_mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) == self@.ref_count
         }
         pub closed spec fn page_size_wf(&self) -> bool {
             &&&
             self.state == PageState::Unavailable <==> self.page_size == PageSize::Unavailable
         }
-        
+        pub closed spec fn wf(&self) -> bool {
+            &&&
+            self.linkedlist_metadata_perm_wf()
+            &&&
+            self.reference_counting_wf()
+            &&&
+            self.page_size_wf()
+        }
 
 
         #[verifier(external_body)]
-        pub fn read_lock(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
+        pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
             requires
                 old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
                 old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
@@ -194,7 +202,7 @@ verus! {
         }
 
         #[verifier(external_body)]
-        pub fn read_unlock(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>, Tracked(read_perm):Tracked<ReadPerm>)
+        pub fn read_unlock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>, Tracked(read_perm):Tracked<ReadPerm>)
             requires
                 old(self).reading_threads().contains(old(lock_agent).thread_id),
                 step_lock_release_requires(old(lock_agent), old(self).lock_id_pair()),
@@ -210,6 +218,28 @@ verus! {
                 self@ =~= old(self)@,
         {
             //TODO
+        }
+
+        #[verifier(external_body)]
+        pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
+            requires
+                old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
+                old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
+                step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
+                old(self)@.state == PageState::Mapped,
+            ensures
+                self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
+                old(self).writing_thread().is_None(),
+                self.writing_thread() =~= old(self).writing_thread(),
+                step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
+                old(self).lock_id_pair() =~= self.lock_id_pair(),
+                self.unchanged() == old(self).unchanged(),
+                self.lock_id() == old(self).lock_id(),
+                ret@.lock_id() == self.lock_id(),
+                self@ =~= old(self)@,
+        {
+            //TODO
+            Tracked::assume_new()
         }
 
         pub fn read(&self, Tracked(read_perm):Tracked<&ReadPerm>) -> (ret:PageView)
