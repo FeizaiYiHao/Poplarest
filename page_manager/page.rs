@@ -28,13 +28,16 @@ verus! {
     pub struct PageView{
         pub addr: PagePtr,
         pub state: PageState,
+        pub size: PageSize,
         pub is_io_page: bool,
         pub ref_count: usize,
         pub owning_container: Option<ContainerPtr>,
     }
 
+    // mapped pages can be read/write locked by anyone
+    // merged/allocated pages can be read locked by anyone, but writed locked only by the owning container
+    // 
     pub struct Page{
-        // built-in lock, only used when page is in "mapped" state
         locked: AtomicBool,
         num_writer:usize,
         num_readers: usize,
@@ -45,6 +48,7 @@ verus! {
         //metadata
         addr: PagePtr,
         state: PageState,
+        size: PageSize,
         is_io_page: bool,
         ref_count: usize,
         owning_container: Option<ContainerPtr>,
@@ -88,6 +92,7 @@ verus! {
         
                 addr: 0,
                 state: PageState::Allocated,
+                size: PageSize::SZ4k
                 is_io_page: false,
                 ref_count: 0,
                 owning_container: None,
@@ -106,6 +111,9 @@ verus! {
         pub closed spec fn state(&self) -> PageState{
             self.state
         }
+        pub closed spec fn size(&self) -> PageSize{
+            self.size
+        }
         pub closed spec fn is_io_page(&self) -> bool{
             self.is_io_page
         }
@@ -122,6 +130,7 @@ verus! {
             PageView{
                 addr: self.addr(),
                 state: self.state(),
+                size: self.size()
                 is_io_page: self.is_io_page(),
                 ref_count: self.ref_count(),
                 owning_container: self.owning_container(),

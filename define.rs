@@ -94,9 +94,7 @@ pub enum PageType {
 pub enum PageState {
     Unavailable,
     Allocated,
-    Mapped4k,
-    Mapped2m,
-    Mapped1g,
+    Mapped,
 }
 
 impl PageState{
