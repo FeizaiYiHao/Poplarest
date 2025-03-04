@@ -9,7 +9,7 @@ pub struct Array<A, const N: usize>{
     pub ar: [A;N]
 }
 
-impl<A: Copy, const N: usize> Array<A, N> {
+impl<A, const N: usize> Array<A, N> {
 
     #[verifier(external_body)]
     pub const fn new() -> (ret: Self)
@@ -67,6 +67,65 @@ impl<A: Copy, const N: usize> Array<A, N> {
     }
 
 }
+
+// impl<A: Copy, const N: usize> Array<A, N> {
+
+//     #[verifier(external_body)]
+//     pub const fn new() -> (ret: Self)
+//         ensures
+//             ret.wf(),
+//     {
+//         unsafe{
+//         let ret = Self {
+//             ar: MaybeUninit::uninit().assume_init(),
+//             seq: Ghost(Seq::empty()),
+//         };
+//         ret
+//         }
+//     }
+
+//     #[verifier(external_body)]
+//     pub fn get(&self, i: usize) -> (out: &A)
+//         requires
+//             0 <= i < N,
+//             self.seq@.len() == N,
+//         ensures
+//             *out == self.seq@.index(i as int),
+//             self.seq@.len() == N,
+//     {
+//         &self.ar[i]
+//     }
+
+//     #[verifier(external_body)]
+//     pub fn set(&mut self, i: usize, out: A)
+//         requires
+//             0 <= i < N,
+//             old(self).wf(),
+//         ensures
+//             self.seq@ =~= old(self).seq@.update(i as int, out),
+//             self.wf(),
+//     {
+//         self.ar[i] = out;
+//     }
+
+//     #[verifier(inline)]
+//     pub open spec fn spec_index(self, i: int) -> A
+//         recommends self.seq@.len() == N,
+//                    0 <= i < N,
+//     {
+//         self.seq@[i]
+//     }
+
+//     #[verifier(inline)]
+//     pub open spec fn view(&self) -> Seq<A>{
+//         self.seq@
+//     }
+
+//     pub open spec fn wf(&self) -> bool{
+//         self.seq@.len() == N
+//     }
+
+// }
 
 impl<const N: usize> Array<u8, N> {
 

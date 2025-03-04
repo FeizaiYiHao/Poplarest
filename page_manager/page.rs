@@ -46,7 +46,7 @@ verus! {
     // 
     pub struct Page{
         locked: AtomicBool,
-        num_writer:usize,
+        num_writer:bool,
         num_readers: usize,
         lock_state:LockState,
     
@@ -73,6 +73,21 @@ verus! {
 
     impl Page{
 
+        pub closed spec fn lock_wf(&self) -> bool{
+            &&&
+            self.num_writer == self.writing_thread@.is_some()
+            &&&
+            self.num_readers == self.reading_threads@.len()
+        }
+
+        pub closed spec fn write_locked(&self) -> bool {
+            self.num_writer
+        }
+
+        pub closed spec fn read_locked(&self) -> bool {
+            self.num_readers != 0
+        }
+
         pub spec fn lock_id(self) -> int;
 
         pub spec fn unchanged(self) -> bool;
@@ -93,7 +108,7 @@ verus! {
         pub fn new() -> Self{
             Self{
                 locked: AtomicBool::new(false),
-                num_writer: 0,
+                num_writer: false,
                 num_readers: 0,
                 lock_state: LockState::Unlocked,
             
@@ -102,7 +117,7 @@ verus! {
         
                 addr: 0,
                 state: PageState::Allocated,
-                size: PageSize::SZ4k
+                size: PageSize::SZ4k,
                 is_io_page: false,
                 ref_count: 0,
                 owning_container: None,
@@ -148,7 +163,7 @@ verus! {
             PageView{
                 addr: self.addr(),
                 state: self.state(),
-                size: self.size()
+                size: self.size(),
                 is_io_page: self.is_io_page(),
                 ref_count: self.ref_count(),
                 owning_container: self.owning_container(),
@@ -171,7 +186,7 @@ verus! {
         }
         pub closed spec fn reference_counting_wf(&self) -> bool{
             &&&
-            self.page_sate == PageState::Mapped ==> 
+            self.state == PageState::Mapped ==> 
                 self.mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) + self.io_mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) == self@.ref_count
         }
         pub closed spec fn page_size_wf(&self) -> bool {
@@ -188,68 +203,68 @@ verus! {
         }
 
 
-        #[verifier(external_body)]
-        pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
-            requires
-                old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
-                old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
-                step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
-                old(self)@.state == PageState::Mapped,
-            ensures
-                self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
-                old(self).writing_thread().is_None(),
-                self.writing_thread() =~= old(self).writing_thread(),
-                step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
-                old(self).lock_id_pair() =~= self.lock_id_pair(),
-                self.unchanged() == old(self).unchanged(),
-                self.lock_id() == old(self).lock_id(),
-                ret@.lock_id() == self.lock_id(),
-                self@ =~= old(self)@,
-        {
-            //TODO
-            Tracked::assume_new()
-        }
+        // #[verifier(external_body)]
+        // pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
+        //     requires
+        //         old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
+        //         old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
+        //         step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
+        //         old(self)@.state == PageState::Mapped,
+        //     ensures
+        //         self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
+        //         old(self).writing_thread().is_None(),
+        //         self.writing_thread() =~= old(self).writing_thread(),
+        //         step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
+        //         old(self).lock_id_pair() =~= self.lock_id_pair(),
+        //         self.unchanged() == old(self).unchanged(),
+        //         self.lock_id() == old(self).lock_id(),
+        //         ret@.lock_id() == self.lock_id(),
+        //         self@ =~= old(self)@,
+        // {
+        //     //TODO
+        //     Tracked::assume_new()
+        // }
 
-        #[verifier(external_body)]
-        pub fn read_unlock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>, Tracked(read_perm):Tracked<ReadPerm>)
-            requires
-                old(self).reading_threads().contains(old(lock_agent).thread_id),
-                step_lock_release_requires(old(lock_agent), old(self).lock_id_pair()),
-                read_perm.lock_id() == old(self).lock_id(),
-                old(self)@.state == PageState::Mapped,
-            ensures
-                self.reading_threads() =~= old(self).reading_threads().remove(lock_agent.thread_id),
-                self.writing_thread() =~= old(self).writing_thread(),
-                step_lock_release_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
-                old(self).lock_id_pair() =~= self.lock_id_pair(),
-                self.unchanged() == old(self).unchanged(),
-                self.lock_id() == old(self).lock_id(),
-                self@ =~= old(self)@,
-        {
-            //TODO
-        }
+        // #[verifier(external_body)]
+        // pub fn read_unlock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>, Tracked(read_perm):Tracked<ReadPerm>)
+        //     requires
+        //         old(self).reading_threads().contains(old(lock_agent).thread_id),
+        //         step_lock_release_requires(old(lock_agent), old(self).lock_id_pair()),
+        //         read_perm.lock_id() == old(self).lock_id(),
+        //         old(self)@.state == PageState::Mapped,
+        //     ensures
+        //         self.reading_threads() =~= old(self).reading_threads().remove(lock_agent.thread_id),
+        //         self.writing_thread() =~= old(self).writing_thread(),
+        //         step_lock_release_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
+        //         old(self).lock_id_pair() =~= self.lock_id_pair(),
+        //         self.unchanged() == old(self).unchanged(),
+        //         self.lock_id() == old(self).lock_id(),
+        //         self@ =~= old(self)@,
+        // {
+        //     //TODO
+        // }
 
-        #[verifier(external_body)]
-        pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
-            requires
-                old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
-                old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
-                step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
-                old(self)@.state == PageState::Mapped,
-            ensures
-                self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
-                old(self).writing_thread().is_None(),
-                self.writing_thread() =~= old(self).writing_thread(),
-                step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
-                old(self).lock_id_pair() =~= self.lock_id_pair(),
-                self.unchanged() == old(self).unchanged(),
-                self.lock_id() == old(self).lock_id(),
-                ret@.lock_id() == self.lock_id(),
-                self@ =~= old(self)@,
-        {
-            //TODO
-            Tracked::assume_new()
-        }
+        // #[verifier(external_body)]
+        // pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
+        //     requires
+        //         old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
+        //         old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
+        //         step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
+        //         old(self)@.state == PageState::Mapped,
+        //     ensures
+        //         self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
+        //         old(self).writing_thread().is_None(),
+        //         self.writing_thread() =~= old(self).writing_thread(),
+        //         step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
+        //         old(self).lock_id_pair() =~= self.lock_id_pair(),
+        //         self.unchanged() == old(self).unchanged(),
+        //         self.lock_id() == old(self).lock_id(),
+        //         ret@.lock_id() == self.lock_id(),
+        //         self@ =~= old(self)@,
+        // {
+        //     //TODO
+        //     Tracked::assume_new()
+        // }
 
         pub fn read(&self, Tracked(read_perm):Tracked<&ReadPerm>) -> (ret:PageView)
             requires
@@ -260,6 +275,7 @@ verus! {
             PageView{
                 addr: self.addr,
                 state: self.state,
+                size: self.size,
                 is_io_page: self.is_io_page,
                 ref_count: self.ref_count,
                 owning_container: self.owning_container,
