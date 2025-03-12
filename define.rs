@@ -18,7 +18,7 @@ pub type LockMinorID = usize;
 
 pub type LockIDPair = (LockMajorID,LockMinorID);
 
-
+pub type PagetableID = usize;
 pub type PageID = usize;
 pub type PagePtr = usize;
 pub type PagePerm4k = PointsTo<[u8; PAGE_SZ_4k]>;

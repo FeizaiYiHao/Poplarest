@@ -130,7 +130,44 @@ verus! {
         {
             //TODO
         }
-
 }
+
+    pub ghost struct PageGhost{
+        pub mappings_4k: Map<PagetableID, Set<VAddr>>,
+        pub writing_thread: Option<ThreadID>,
+    }
+
+    pub open spec fn write_lock_aquires(old: PageManagerGhost, page_id:PageID) -> bool
+    {
+        &&&
+        old.page_array[page_id as int].writing_thread.is_None()
+    }
+
+    pub open spec fn write_lock_ensures(old: PageManagerGhost, new: PageManagerGhost, page_id:PageID, thread_id:ThreadID) -> bool
+    {
+        &&&
+        new.page_array[page_id as int].writing_thread == Some(thread_id)
+        &&&
+        old.page_array.len() =~= new.page_array.len()
+        &&&
+        forall|p_id:PageID| #![auto] 0 <= p_id < NUM_PAGES && p_id != page_id ==> 
+            old.page_array[p_id as int] == new.page_array[p_id as int]
+        &&&
+        old.page_array[page_id as int].mappings_4k == new.page_array[page_id as int].mappings_4k
+    }
+
+    pub ghost struct PageManagerGhost{
+        pub page_array: Seq<PageGhost>,
+    }
+
+    impl PageManagerGhost{
+        #[verifier(external_body)]
+        pub fn write_lock(&mut self, page_id:PageID, thread_id:ThreadID)
+            requires 
+                write_lock_aquires(*old(self), page_id),
+            ensures
+                write_lock_ensures(*old(self), *self, page_id, thread_id),
+        {}
+    }
 
 }
