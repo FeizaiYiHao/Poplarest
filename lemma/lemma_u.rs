@@ -133,6 +133,18 @@ pub proof fn seq_remove_lemma<A>()
 }
 
 #[verifier(external_body)]
+pub proof fn seq_push_unique_to_set_lemma<A>()
+ensures
+forall|s: Seq<A>, v:A|
+    #![auto]
+    s.no_duplicates() && s.contains(v) == false
+    ==>  
+    s.push(v).to_set() == s.to_set().insert(v), 
+{
+
+}
+
+#[verifier(external_body)]
 pub proof fn seq_push_unique_lemma<A>()
     ensures
         forall|s: Seq<A>, v:A|

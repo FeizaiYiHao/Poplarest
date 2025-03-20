@@ -11,6 +11,7 @@ pub type EndpointIdx = usize;
 pub type EndpointPtr = usize;
 pub type ContainerPtr = usize;
 pub type CpuId = usize;
+pub type DLLNodePointer = usize;
 
 pub type ThreadID = usize;
 pub type LockMajorID = usize;

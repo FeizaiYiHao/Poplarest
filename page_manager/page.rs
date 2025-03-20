@@ -5,7 +5,7 @@ verus! {
     use crate::define::*;
     use vstd::simple_pptr::PPtr;
     use vstd::simple_pptr::PointsTo;
-    use crate::lock_agent::*;
+    // use crate::lock_agent::*;
     use crate::rwlock::*;
     
     pub ghost enum LockState{
@@ -17,6 +17,7 @@ verus! {
     #[derive(Clone, Copy)]
     pub struct PageLinkedlistMetaData{
         pub addr: PagePtr,
+        pub id: PageID,
         pub prev: Option<PPtr<PageLinkedlistMetaData>>,
         pub next: Option<PPtr<PageLinkedlistMetaData>>,
     }
@@ -25,6 +26,7 @@ verus! {
         pub fn new() -> Self{
             Self{
                 addr:0,
+                id: 0,
                 prev:None,
                 next:None,
             }
@@ -61,6 +63,7 @@ verus! {
         ref_count: usize,
         owning_container: Option<ContainerPtr>,
         page_size: PageSize,
+        rev_ptr: DLLNodePointer,
 
         // reference counters
         mappings: Ghost<Map<ProcPtr, Set<VAddr>>>,
@@ -122,6 +125,7 @@ verus! {
                 ref_count: 0,
                 owning_container: None,
                 page_size:PageSize::SZ4k,
+                rev_ptr: 0,
         
                 mappings: Ghost(Map::empty()),
                 io_mappings: Ghost(Map::empty()),

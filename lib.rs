@@ -6,6 +6,7 @@ pub mod pagetable_manager;
 pub mod rwlock;
 pub mod lock_agent;
 pub mod state_machine;
+pub mod doubly_linked_list;
 // pub mod thread;
 // pub mod process;
 // pub mod process_manager;
