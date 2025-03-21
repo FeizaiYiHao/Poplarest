@@ -145,6 +145,23 @@ forall|s: Seq<A>, v:A|
 }
 
 #[verifier(external_body)]
+pub proof fn seq_drop_unique_to_set_lemma<A>()
+ensures
+forall|s: Seq<A>|
+    #![auto]
+    s.no_duplicates() && s.len() != 0 
+    ==>  
+    s.drop_first().to_set() == s.to_set().remove(s[0]), 
+forall|s: Seq<A>|
+    #![auto]
+    s.no_duplicates() && s.len() != 0 
+    ==>  
+    s.drop_last().to_set() == s.to_set().remove(s[s.len() - 1]), 
+{
+
+}
+
+#[verifier(external_body)]
 pub proof fn seq_push_unique_lemma<A>()
     ensures
         forall|s: Seq<A>, v:A|

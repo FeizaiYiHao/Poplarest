@@ -6,10 +6,10 @@ use vstd::simple_pptr::*;
 use crate::define::*;
 use crate::lemma::lemma_u::*;
 
-struct DLLNode<V> {
-    prev: Option<DLLNodePointer>,
-    next: Option<DLLNodePointer>,
-    payload: V,
+pub struct DLLNode<V> {
+    pub prev: Option<DLLNodePointer>,
+    pub next: Option<DLLNodePointer>,
+    pub payload: V,
 }
 
 #[verifier(external_body)]
@@ -237,6 +237,135 @@ impl<V> DLL<V>{
         assert(self.value_seq_wf());
         assert(self.wf());
 
+    }
+
+    pub fn push_back(&mut self, ptr:DLLNodePointer, perm: Tracked<PointsTo<DLLNode<V>>>) 
+    requires
+        old(self).wf(),
+        perm@.addr() == ptr,
+        perm@.is_init(),
+        old(self).len() != usize::MAX,
+        old(self).closure().contains(ptr) == false,
+    ensures
+        self.wf(),
+        self.len() == old(self).len() + 1,
+        self@ =~= old(self)@.push(perm@.value().payload),
+        self.closure() =~= old(self).closure().insert(ptr),
+        forall|n_ptr: DLLNodePointer| 
+            #![trigger self.resolve(n_ptr)]
+            old(self).closure().contains(n_ptr) 
+            ==>
+            self.resolve(n_ptr) == old(self).resolve(n_ptr),
+        self.resolve(ptr) == perm@.value().payload,
+    {
+        if self.len() == 0{
+            self.push_empty(ptr, perm);
+        }else{
+            self.push_non_empty_tail(ptr, perm);
+        }
+    }
+
+    fn pop_head_empty(&mut self) -> (ret:(DLLNodePointer, Tracked<PointsTo<DLLNode<V>>>))
+        requires
+            old(self).wf(),
+            old(self).len() == 1,
+        ensures
+            self.wf(),
+            self.len() == old(self).len() - 1,
+            self@ =~= old(self)@.drop_first(),
+            self.closure() =~= old(self).closure().remove(ret.0),
+            self.closure() =~= Set::empty(),
+            ret.1@.addr() == ret.0,
+            ret.1@.is_init(),
+            ret.1@.value().payload == old(self)@[0],
+    {
+        let old_head_ptr = self.head.unwrap();
+        self.head = None;
+        self.tail = None;
+        self.len = 0;
+        proof{
+            self.ptrs_seq@ = self.ptrs_seq@.drop_first();
+            self.value_seq@ = self.value_seq@.drop_first();
+        }
+        let tracked mut old_head_perm = self.perms.borrow_mut().tracked_remove(old_head_ptr);
+        assert(self.wf());
+        return (old_head_ptr, Tracked(old_head_perm));
+    }
+
+    fn pop_head_non_empty(&mut self) -> (ret:(DLLNodePointer, Tracked<PointsTo<DLLNode<V>>>))
+        requires
+            old(self).wf(),
+            old(self).len() > 1,
+        ensures
+            self.wf(),
+            self.len() == old(self).len() - 1,
+            self@ =~= old(self)@.drop_first(),
+            self.closure() =~= old(self).closure().remove(ret.0),
+            ret.1@.addr() == ret.0,
+            ret.1@.is_init(),
+            ret.1@.value().payload == old(self)@[0],
+            forall|n_ptr: DLLNodePointer| 
+            #![trigger self.resolve(n_ptr)]
+                self.closure().contains(n_ptr) 
+                ==>
+                self.resolve(n_ptr) == old(self).resolve(n_ptr),
+    {
+        proof{
+            seq_drop_unique_to_set_lemma::<DLLNodePointer>();
+        }
+        let old_head_ptr = self.head.unwrap();
+        
+        let tracked mut old_head_perm = self.perms.borrow_mut().tracked_remove(old_head_ptr);
+        let old_head_node = PPtr::<DLLNode<V>>::from_usize(old_head_ptr).borrow(Tracked(&old_head_perm));
+        let old_head_next_ptr = old_head_node.next.unwrap();
+        self.head = Some(old_head_next_ptr);
+        self.len = self.len - 1;
+        let tracked mut new_head_perm = self.perms.borrow_mut().tracked_remove(old_head_next_ptr);
+        set_prev::<V>(old_head_next_ptr, Tracked(&mut new_head_perm), None);
+        proof{
+            self.perms.borrow_mut().tracked_insert(old_head_next_ptr, new_head_perm);
+            self.ptrs_seq@ = self.ptrs_seq@.drop_first();
+            self.value_seq@ = self.value_seq@.drop_first();
+        }
+        assert(self.wf_len());
+        assert(self.wf_head_tail());
+        assert(self.ptrs_unique());
+        assert(self.perms@.dom() =~= self.ptrs_seq@.to_set());
+        assert(forall|n_ptr: DLLNodePointer| 
+            #![trigger self.perms@[n_ptr].is_init()]
+            #![trigger self.perms@[n_ptr].addr()]
+            self.perms@.dom().contains(n_ptr) 
+            ==> self.perms@[n_ptr].is_init() && self.perms@[n_ptr].addr() == n_ptr);
+        assert(self.perms_wf());
+        assert(self.ptrs_seq_wf());
+        assert(self.value_seq_wf());
+        assert(self.wf());
+        return (old_head_ptr, Tracked(old_head_perm));
+    }
+
+    pub fn pop_head(&mut self) -> (ret:(DLLNodePointer, Tracked<PointsTo<DLLNode<V>>>))
+        requires
+            old(self).wf(),
+            old(self).len() != 0,
+        ensures
+            self.wf(),
+            self.len() == old(self).len() - 1,
+            self@ =~= old(self)@.drop_first(),
+            self.closure() =~= old(self).closure().remove(ret.0),
+            ret.1@.addr() == ret.0,
+            ret.1@.is_init(),
+            ret.1@.value().payload == old(self)@[0],
+            forall|n_ptr: DLLNodePointer| 
+            #![trigger self.resolve(n_ptr)]
+                self.closure().contains(n_ptr) 
+                ==>
+                self.resolve(n_ptr) == old(self).resolve(n_ptr),
+    {
+        if self.len() == 1{
+            return self.pop_head_empty();
+        }else{
+            return self.pop_head_non_empty();
+        }
     }
 }
 
