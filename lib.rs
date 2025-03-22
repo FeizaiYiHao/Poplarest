@@ -9,7 +9,7 @@ pub mod state_machine;
 pub mod doubly_linked_list;
 // pub mod thread;
 // pub mod process;
-// pub mod process_manager;
+pub mod process_manager;
 // pub mod slinkedlist;
 pub mod lemma;
 pub mod util;

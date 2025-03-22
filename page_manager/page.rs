@@ -7,12 +7,6 @@ verus! {
     use vstd::simple_pptr::PointsTo;
     // use crate::lock_agent::*;
     use crate::rwlock::*;
-    
-    pub ghost enum LockState{
-        Unlocked,
-        ReadLocked,
-        WriteLocked,
-    }
 
     #[derive(Clone, Copy)]
     pub struct PageLinkedlistMetaData{
@@ -74,6 +68,32 @@ verus! {
         page_linkedlist_metadata_perm: Tracked<Option<PointsTo<PageLinkedlistMetaData>>>,
     }
 
+    impl RWLock for Page{
+        spec fn lock_id(&self) -> int;
+    
+        open spec fn lock_id_pair(&self) -> LockIDPair{
+            (self.lock_major(), self.lock_minor())
+        }
+    
+        spec fn separate(&self) -> bool;
+
+        open spec fn lock_major(&self) -> LockMajorID{
+            PageLockMajor
+        }
+    
+        closed spec fn lock_minor(&self) -> LockMinorID{
+            self.addr
+        }
+
+        closed spec fn writing_thread(&self) -> Option<ThreadID>{
+            self.writing_thread@
+        }
+
+        closed spec fn reading_threads(&self) -> Set<ThreadID>{
+            self.reading_threads@
+        }
+    }
+
     impl Page{
 
         pub closed spec fn lock_wf(&self) -> bool{
@@ -89,22 +109,6 @@ verus! {
 
         pub closed spec fn read_locked(&self) -> bool {
             self.num_readers != 0
-        }
-
-        pub spec fn lock_id(self) -> int;
-
-        pub spec fn unchanged(self) -> bool;
-    
-        pub open spec fn lock_id_pair(self) -> LockIDPair{
-            (self.lock_major(), self.lock_minor())
-        }
-    
-        pub open spec fn lock_major(self) -> LockMajorID{
-            PageLockMajor
-        }
-    
-        pub closed spec fn lock_minor(self) -> LockMinorID{
-            self.addr
         }
 
         #[verifier(external_body)]
@@ -175,12 +179,12 @@ verus! {
             }
         }
 
-        pub closed spec fn writing_thread(&self) -> Option<ThreadID>{
-            self.writing_thread@
-        }
-        pub closed spec fn reading_threads(&self) -> Set<ThreadID>{
-            self.reading_threads@
-        }
+        // pub closed spec fn writing_thread(&self) -> Option<ThreadID>{
+        //     self.writing_thread@
+        // }
+        // pub closed spec fn reading_threads(&self) -> Set<ThreadID>{
+        //     self.reading_threads@
+        // }
 
 
 
@@ -220,7 +224,7 @@ verus! {
         //         self.writing_thread() =~= old(self).writing_thread(),
         //         step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
         //         old(self).lock_id_pair() =~= self.lock_id_pair(),
-        //         self.unchanged() == old(self).unchanged(),
+        //         self.separate() == old(self).separate(),
         //         self.lock_id() == old(self).lock_id(),
         //         ret@.lock_id() == self.lock_id(),
         //         self@ =~= old(self)@,
@@ -241,7 +245,7 @@ verus! {
         //         self.writing_thread() =~= old(self).writing_thread(),
         //         step_lock_release_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
         //         old(self).lock_id_pair() =~= self.lock_id_pair(),
-        //         self.unchanged() == old(self).unchanged(),
+        //         self.separate() == old(self).separate(),
         //         self.lock_id() == old(self).lock_id(),
         //         self@ =~= old(self)@,
         // {
@@ -261,7 +265,7 @@ verus! {
         //         self.writing_thread() =~= old(self).writing_thread(),
         //         step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
         //         old(self).lock_id_pair() =~= self.lock_id_pair(),
-        //         self.unchanged() == old(self).unchanged(),
+        //         self.separate() == old(self).separate(),
         //         self.lock_id() == old(self).lock_id(),
         //         ret@.lock_id() == self.lock_id(),
         //         self@ =~= old(self)@,

@@ -52,7 +52,7 @@ verus! {
                 self.page_array@[page_id as int].writing_thread() =~= old(self).page_array@[page_id as int].writing_thread(),
                 step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).page_array@[page_id as int].lock_id_pair()),
                 old(self).page_array@[page_id as int].lock_id_pair() =~= self.page_array@[page_id as int].lock_id_pair(),
-                self.page_array@[page_id as int].unchanged() == old(self).page_array@[page_id as int].unchanged(),
+                self.page_array@[page_id as int].separate() == old(self).page_array@[page_id as int].separate(),
                 self.page_array@[page_id as int].lock_id() == old(self).page_array@[page_id as int].lock_id(),
                 self.page_array@[page_id as int]@ =~= old(self).page_array@[page_id as int]@,
                 forall|p_id:PageID| #![auto] 0 <= p_id < NUM_PAGES && p_id != page_id ==> self.page_array@[p_id as int] == old(self).page_array@[p_id as int],
@@ -73,7 +73,7 @@ verus! {
                 self.page_array@[page_id as int].writing_thread() =~= old(self).page_array@[page_id as int].writing_thread(),
                 step_lock_release_ensures(old(lock_agent), lock_agent, old(self).page_array@[page_id as int].lock_id_pair()),
                 old(self).page_array@[page_id as int].lock_id_pair() =~= self.page_array@[page_id as int].lock_id_pair(),
-                self.page_array@[page_id as int].unchanged() == old(self).page_array@[page_id as int].unchanged(),
+                self.page_array@[page_id as int].separate() == old(self).page_array@[page_id as int].separate(),
                 self.page_array@[page_id as int].lock_id() == old(self).page_array@[page_id as int].lock_id(),
                 self.page_array@[page_id as int]@ =~= old(self).page_array@[page_id as int]@,
                 forall|p_id:PageID| #![auto] 0 <= p_id < NUM_PAGES && p_id != page_id ==> self.page_array@[p_id as int] == old(self).page_array@[p_id as int],
@@ -98,7 +98,7 @@ verus! {
                     self.page_array@[page_id as int].writing_thread() =~= Some(old(lock_agent).thread_id) &&
                     step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).page_array@[page_id as int].lock_id_pair()) &&
                     old(self).page_array@[page_id as int].lock_id_pair() =~= self.page_array@[page_id as int].lock_id_pair() &&
-                    self.page_array@[page_id as int].unchanged() == false && 
+                    self.page_array@[page_id as int].separate() == false && 
                     self.page_array@[page_id as int].lock_id() == old(self).page_array@[page_id as int].lock_id() &&
                     self.page_array@[page_id as int]@ =~= old(self).page_array@[page_id as int]@ &&
                     forall|p_id:PageID| #![auto] 0 <= p_id < NUM_PAGES && p_id != page_id ==> self.page_array@[p_id as int] == old(self).page_array@[p_id as int]
