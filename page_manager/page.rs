@@ -60,8 +60,8 @@ verus! {
         rev_ptr: DLLNodePointer,
 
         // reference counters
-        mappings: Ghost<Map<ProcPtr, Set<VAddr>>>,
-        io_mappings: Ghost<Map<ProcPtr, Set<VAddr>>>,
+        mappings: Ghost<Set<(Pcid, VAddr)>>,
+        io_mappings: Ghost<Set<(IOid,VAddr)>>,
 
         //per-container linkedlist node perm
         page_linkedlist_metadata: PageLinkedlistMetaData,
@@ -92,6 +92,14 @@ verus! {
         closed spec fn reading_threads(&self) -> Set<ThreadID>{
             self.reading_threads@
         }
+
+        closed spec fn write_locked(&self) -> bool {
+            self.num_writer
+        }
+
+        closed spec fn read_locked(&self) -> bool {
+            self.num_readers != 0
+        }
     }
 
     impl Page{
@@ -101,14 +109,6 @@ verus! {
             self.num_writer == self.writing_thread@.is_some()
             &&&
             self.num_readers == self.reading_threads@.len()
-        }
-
-        pub closed spec fn write_locked(&self) -> bool {
-            self.num_writer
-        }
-
-        pub closed spec fn read_locked(&self) -> bool {
-            self.num_readers != 0
         }
 
         #[verifier(external_body)]
@@ -131,8 +131,8 @@ verus! {
                 page_size:PageSize::SZ4k,
                 rev_ptr: 0,
         
-                mappings: Ghost(Map::empty()),
-                io_mappings: Ghost(Map::empty()),
+                mappings: Ghost(Set::empty()),
+                io_mappings: Ghost(Set::empty()),
         
                 page_linkedlist_metadata: PageLinkedlistMetaData::new(),
                 page_linkedlist_metadata_perm: Tracked::assume_new(),
@@ -157,10 +157,10 @@ verus! {
         pub closed spec fn page_size(&self) -> PageSize{
             self.page_size
         }
-        pub closed spec fn mappings(&self) -> Map<ProcPtr, Set<VAddr>>{
+        pub closed spec fn mappings(&self) -> Set<(Pcid, VAddr)>{
             self.mappings@
         }
-        pub closed spec fn io_mappings(&self) -> Map<ProcPtr, Set<VAddr>>{
+        pub closed spec fn io_mappings(&self) -> Set<(IOid, VAddr)>{
             self.io_mappings@
         }
         pub closed spec fn owning_container(&self) -> Option<ContainerPtr>{
@@ -195,7 +195,7 @@ verus! {
         pub closed spec fn reference_counting_wf(&self) -> bool{
             &&&
             self.state == PageState::Mapped ==> 
-                self.mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) + self.io_mappings@.values().fold(0, |count: int, s: Set<VAddr>| count + s.len()) == self@.ref_count
+                self.mappings@.len() + self.io_mappings@.len() == self@.ref_count
         }
         pub closed spec fn page_size_wf(&self) -> bool {
             &&&

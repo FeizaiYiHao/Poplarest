@@ -42,6 +42,10 @@ pub trait RWLock {
     spec fn lock_minor(&self) -> LockMinorID;
 
     spec fn lock_id_pair(&self) -> LockIDPair;
+
+    spec fn write_locked(&self) -> bool;
+
+    spec fn read_locked(&self) -> bool;
 }
 
 // pub struct RWLock<T, const N: usize>{
