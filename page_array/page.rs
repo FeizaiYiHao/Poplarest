@@ -109,6 +109,8 @@ verus! {
             self.num_writer == self.writing_thread@.is_some()
             &&&
             self.num_readers == self.reading_threads@.len()
+            &&&
+            self.num_writer ^ (self.num_readers != 0)
         }
 
         #[verifier(external_body)]
@@ -208,71 +210,9 @@ verus! {
             self.reference_counting_wf()
             &&&
             self.page_size_wf()
+            &&&
+            self.lock_wf()
         }
-
-
-        // #[verifier(external_body)]
-        // pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
-        //     requires
-        //         old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
-        //         old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
-        //         step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
-        //         old(self)@.state == PageState::Mapped,
-        //     ensures
-        //         self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
-        //         old(self).writing_thread().is_None(),
-        //         self.writing_thread() =~= old(self).writing_thread(),
-        //         step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
-        //         old(self).lock_id_pair() =~= self.lock_id_pair(),
-        //         self.separate() == old(self).separate(),
-        //         self.lock_id() == old(self).lock_id(),
-        //         ret@.lock_id() == self.lock_id(),
-        //         self@ =~= old(self)@,
-        // {
-        //     //TODO
-        //     Tracked::assume_new()
-        // }
-
-        // #[verifier(external_body)]
-        // pub fn read_unlock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>, Tracked(read_perm):Tracked<ReadPerm>)
-        //     requires
-        //         old(self).reading_threads().contains(old(lock_agent).thread_id),
-        //         step_lock_release_requires(old(lock_agent), old(self).lock_id_pair()),
-        //         read_perm.lock_id() == old(self).lock_id(),
-        //         old(self)@.state == PageState::Mapped,
-        //     ensures
-        //         self.reading_threads() =~= old(self).reading_threads().remove(lock_agent.thread_id),
-        //         self.writing_thread() =~= old(self).writing_thread(),
-        //         step_lock_release_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
-        //         old(self).lock_id_pair() =~= self.lock_id_pair(),
-        //         self.separate() == old(self).separate(),
-        //         self.lock_id() == old(self).lock_id(),
-        //         self@ =~= old(self)@,
-        // {
-        //     //TODO
-        // }
-
-        // #[verifier(external_body)]
-        // pub fn read_lock_mapped(&mut self, Tracked(lock_agent): Tracked<&mut LockAgent>) -> (ret:Tracked<ReadPerm>)
-        //     requires
-        //         old(self).reading_threads().contains(old(lock_agent).thread_id) == false,
-        //         old(self).writing_thread().is_None() || old(self).writing_thread().unwrap() != old(lock_agent).thread_id,
-        //         step_lock_aquire_requires(old(lock_agent), old(self).lock_id_pair()),
-        //         old(self)@.state == PageState::Mapped,
-        //     ensures
-        //         self.reading_threads() =~= old(self).reading_threads().insert(lock_agent.thread_id),
-        //         old(self).writing_thread().is_None(),
-        //         self.writing_thread() =~= old(self).writing_thread(),
-        //         step_lock_aquire_ensures(old(lock_agent), lock_agent, old(self).lock_id_pair()),
-        //         old(self).lock_id_pair() =~= self.lock_id_pair(),
-        //         self.separate() == old(self).separate(),
-        //         self.lock_id() == old(self).lock_id(),
-        //         ret@.lock_id() == self.lock_id(),
-        //         self@ =~= old(self)@,
-        // {
-        //     //TODO
-        //     Tracked::assume_new()
-        // }
 
         pub fn read(&self, Tracked(read_perm):Tracked<&ReadPerm>) -> (ret:PageView)
             requires

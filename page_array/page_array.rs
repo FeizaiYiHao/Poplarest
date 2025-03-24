@@ -1,16 +1,16 @@
 use vstd::prelude::*;
 verus! {
     use crate::define::*;
-    use crate::page_manager::page::*;
+    use crate::page_array::page::*;
     use crate::array::Array;
     use crate::rwlock::*;
     use crate::lock_agent::*;
 
-    pub struct PageManager{
+    pub struct PageArray{
         pub page_array: Array<Page, NUM_PAGES>,
     }
 
-    impl PageManager{
+    impl PageArray{
         pub open spec fn page_array_wf(&self) -> bool{
             &&&
             self.page_array.wf()
@@ -174,13 +174,13 @@ verus! {
         pub writing_thread: Option<ThreadID>,
     }
 
-    pub open spec fn write_lock_aquires(old: PageManagerGhost, page_id:PageID) -> bool
+    pub open spec fn write_lock_aquires(old: PageArrayGhost, page_id:PageID) -> bool
     {
         &&&
         old.page_array[page_id as int].writing_thread.is_None()
     }
 
-    pub open spec fn write_lock_ensures(old: PageManagerGhost, new: PageManagerGhost, page_id:PageID, thread_id:ThreadID) -> bool
+    pub open spec fn write_lock_ensures(old: PageArrayGhost, new: PageArrayGhost, page_id:PageID, thread_id:ThreadID) -> bool
     {
         &&&
         new.page_array[page_id as int].writing_thread == Some(thread_id)
@@ -193,11 +193,11 @@ verus! {
         old.page_array[page_id as int].mappings_4k == new.page_array[page_id as int].mappings_4k
     }
 
-    pub ghost struct PageManagerGhost{
+    pub ghost struct PageArrayGhost{
         pub page_array: Seq<PageGhost>,
     }
 
-    impl PageManagerGhost{
+    impl PageArrayGhost{
         #[verifier(external_body)]
         pub fn write_lock(&mut self, page_id:PageID, thread_id:ThreadID)
             requires 
